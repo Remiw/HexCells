@@ -1,14 +1,5 @@
-// Before to start this macro you should check:
-// 1. The input file should be without headers
-// 2. the output from the Tektronix sometimes is -inf, we chosen the value and remplaced it for 0.0  in order
-// 3. The input should be without headers and the "," should be remplaced by " "
-
-// This program were made to explore quickly the
-// output from a digitizer
-// To run this program you should write:
-// root wfDisplay\(60\)
-// where 60 is the number of events to explore
-
+// This code needs "WaveFormFunctions.C" to work.
+//  
 
 #include <stdio.h>
 #include <fcntl.h>
@@ -39,14 +30,8 @@
 #include "WaveFormFunctions.C"
 
 void rootfyTwoCh(){
-// void rootfy(int noWFfrom, int noWFto, int iSet, TString output){ 
     int noWFfrom; int noWFto; int iSet; TString output;
-    //rootfy.C\(1,1001,1,\"data1_1\"\)
-    //noWFfrom 1,1001,2001,2500
-    //iSet the adq number 1-11
-    //output file format dataiSet_1,2,3
-
-    TString mainfile ="d3";
+    TString mainfile ="d3"; //here is the folder where the data is stored
    gROOT->Reset();
    Bool_t eof = false;
    
@@ -299,10 +284,10 @@ void rootfyTwoCh(){
         h_WF2->SetBinContent(i,wf1);  
         h_WF3->SetBinContent(i,wf2);
         h_WF4->SetBinContent(i,wf3);
-        h_Pers->Fill(i*bin_width,wf0);
-        h_PersTwo->Fill(i*bin_width,wf1);
-        h_PersThree->Fill(i*bin_width,wf2);
-        h_PersFour->Fill(i*bin_width,wf3);
+
+        // h_PersTwo->Fill(i*bin_width,wf1);
+        // h_PersThree->Fill(i*bin_width,wf2);
+        // h_PersFour->Fill(i*bin_width,wf3);
 
         fWaveForm0.data[i]=wf0;
         fWaveForm1.data[i]=wf1;
@@ -380,7 +365,7 @@ void rootfyTwoCh(){
         //first
         pPulse[0]->fadqTime=adqTime0;
         fBase = GetBaseLine(pfWaveForm[0], iBLfrom, iBLto);
-        pPulse[0]->fBase;
+        pPulse[0]->fBase=fBase;
         SubtractBaseLine(pfWaveForm[0], pfWaveFormBL[0], fBase );
         SubtractBaseLine(pfCFDWaveForm[0], pfCFDWaveFormBL[0], fBase );
 //         InvertWaveForm(pfWaveFormBL[0], pfWaveFormBL[0]);
@@ -395,7 +380,7 @@ void rootfyTwoCh(){
         //second
         pPulse[1]->fadqTime=adqTime1;
         fBase = GetBaseLine(pfWaveForm[1], iBLfrom, iBLto);
-        pPulse[1]->fBase;
+        pPulse[1]->fBase=fBase;
         SubtractBaseLine(pfWaveForm[1], pfWaveFormBL[1], fBase );
         SubtractBaseLine(pfCFDWaveForm[1], pfCFDWaveFormBL[1], fBase);
 //         InvertWaveForm(pfWaveFormBL[1], pfWaveFormBL[1]);
@@ -410,7 +395,7 @@ void rootfyTwoCh(){
         //third
         pPulse[2]->fadqTime=adqTime2;
         fBase = GetBaseLine(pfWaveForm[2], iBLfrom, iBLto);
-        pPulse[2]->fBase;
+        pPulse[2]->fBase=fBase;
         SubtractBaseLine(pfWaveForm[2], pfWaveFormBL[2], fBase );
         SubtractBaseLine(pfCFDWaveForm[2], pfCFDWaveFormBL[2], fBase );
 //         InvertWaveForm(pfWaveFormBL[2], pfWaveFormBL[2]);
@@ -425,7 +410,7 @@ void rootfyTwoCh(){
         //fourth
         pPulse[3]->fadqTime=adqTime3;
         fBase = GetBaseLineT(pfWaveForm[3], iBLfromT, iBLtoT);
-        pPulse[3]->fBase;
+        pPulse[3]->fBase=fBase;
         SubtractBaseLine(pfWaveForm[3], pfWaveFormBL[3], fBase );
         InvertWaveForm(pfWaveFormBL[3], pfWaveFormBL[3]);
         pPulse[3]->fMaxBin = GetPeakPosition(pfWaveFormBL[3], iPULSEfromT , iPULSEtoT );
@@ -434,6 +419,26 @@ void rootfyTwoCh(){
         pPulse[3]->fWidth = GetTdcWidth(pfWaveFormBL[3], iPULSEfromT , iPULSEtoT ,0.50);
         pPulse[3]->fRCharge = GetRCharge(pfWaveFormBL[3], iPULSEfromT , iPULSEtoT );
         pPulse[3]->fT0_30 = GetFrontThresholdPosition(pfWaveForm[3], iPULSEfromT , iPULSEtoT , 0.3);
+
+        // Fill persistence using current-event pulse parameters
+        const double tMinCut = 90;
+        const double tMaxCut = 100;
+        const double ampCut = 0.006;
+
+        const bool passB0 = (B0->fMax > ampCut) && (B0->fT0CFD*bin_width > tMinCut) && (B0->fT0CFD*bin_width < tMaxCut);
+        const bool passB1 = (B1->fMax > ampCut) && (B1->fT0CFD*bin_width > tMinCut) && (B1->fT0CFD*bin_width < tMaxCut);
+        const bool passB2 = (B2->fMax > ampCut) && (B2->fT0CFD*bin_width > tMinCut) && (B2->fT0CFD*bin_width < tMaxCut);
+        const bool passB3 = (B0->fMax > ampCut) && (B0->fT0CFD*bin_width > tMinCut) && (B0->fT0CFD*bin_width < tMaxCut) &&
+                            (B1->fMax > ampCut) && (B1->fT0CFD*bin_width > tMinCut) && (B1->fT0CFD*bin_width < tMaxCut) &&
+                            (B2->fMax > ampCut) && (B2->fT0CFD*bin_width > tMinCut) && (B2->fT0CFD*bin_width < tMaxCut);
+
+        for (int i=0; i<iChannels; i++) {
+          const double tSample = i * bin_width;
+          if (passB0) h_Pers->Fill(tSample, fWaveForm0.data[i]);
+          if (passB1) h_PersTwo->Fill(tSample, fWaveForm1.data[i]);
+          if (passB2) h_PersThree->Fill(tSample, fWaveForm2.data[i]);
+          if (passB3) h_PersFour->Fill(tSample, fWaveForm3.data[i]);
+        }
 
         tTree.Fill();
       if(iFile<5){
@@ -454,7 +459,7 @@ void rootfyTwoCh(){
 //     TCanvas *c2 = new TCanvas("c2","WaveForm",10,10,1400,700);
 //     h_Pers->Draw("colz");
 
-  TString outputFile = "Tree"+mainfile+".root";
+  TString outputFile = "try.root";  //Output file name
 //   TString outputFile = output+".root";
   TFile*  file = new TFile(outputFile,"recreate");
   tTree.Write();

@@ -48,11 +48,11 @@
 // };
 
 
-void mergedata(){
-  TFile* file = new TFile("Treed3.root");
+void mergedata2(){
+  TFile* file = new TFile("try.root");
   TChain *tree = new TChain("tree");
   // Open the ROOT file
-  tree->Add("Treed3.root");
+  tree->Add("try.root");
 
   //tree variables
   int run, event; 
@@ -78,6 +78,16 @@ void mergedata(){
   //     adqComplete[j]=false;
   // }
 
+  // --- Efficiency counters ---
+  Long64_t N_B1_B2 = 0;   // Denominator for A3
+  Long64_t N_B0_B2 = 0;   // Denominator for B3
+  Long64_t N_B0_B1 = 0;   // Denominator for C3
+
+  Long64_t nHit_B0 = 0;   // Hits A3
+  Long64_t nHit_B1 = 0;   // Hits B3
+  Long64_t nHit_B2 = 0;   // Hits C3
+
+
   Int_t i, iChannels = bins_per_record+1;
 
   //histogramas para los valores màximos (amplitudes)
@@ -87,9 +97,9 @@ void mergedata(){
   auto hB3Max = new TH1F("hB3Max","Amplitude Distribution ch4; Amplitude, V; Entries",150,-1.,1.1);
   //para la dist de ancho de pulso
   auto hB0Width = new TH1F("hB0Width", "PulseWidth Distribution ch1; Time (ns); Entries", 150, 0, 600);
-  auto hB1Width = new TH1F("hB0Width", "PulseWidth Distribution ch2; Time (ns); Entries", 150, 0, 600);
-  auto hB2Width = new TH1F("hB0Width", "PulseWidth Distribution ch3; Time (ns); Entries", 150, 0, 600);
-  auto hB3Width = new TH1F("hB0Width", "PulseWidth Distribution ch4; Time (ns); Entries", 150, 63, 64);
+  auto hB1Width = new TH1F("hB1Width", "PulseWidth Distribution ch2; Time (ns); Entries", 150, 0, 600);
+  auto hB2Width = new TH1F("hB2Width", "PulseWidth Distribution ch3; Time (ns); Entries", 150, 0, 600);
+  auto hB3Width = new TH1F("hB3Width", "PulseWidth Distribution ch4; Time (ns); Entries", 150, 63, 64);
   //para persistencias
   TH2F *h_Per0= (TH2F*)file->Get("h_Pers"); 
   TH2F *h_Per1= (TH2F*)file->Get("h_PersTwo"); 
@@ -110,7 +120,7 @@ void mergedata(){
 
   //for correction
   auto h_u0 = new TProfile("h_u[0]","t(C3) - t(B3) vs Width(C3); Width, ns;dT,ns",150.,0.,250,-20.,20.);
-  auto h_u1 = new TProfile("h_u[1]","t(B3) - t(C3) vs Width(B3); Width, ns;dT,ns",150.,0.,250,-20.,20.);
+  auto h_u1 = new TProfile("h_u[1]","t'(C3) - t'(B3) vs Width(C3); Width, ns;dT,ns",150.,0.,250,-20.,20.);
   auto h_t = new TH1F("t'=T0_CFD-m*width", "t'(C3)-t'(B3), corrected; Time (ns); Entries", 40, -6, 6);
   
 
@@ -121,15 +131,28 @@ void mergedata(){
   for (iEvent=0; iEvent<nEvents; iEvent++) {
     tree->GetEntry(iEvent);
 
+    bool hit_0 = (B0->fMax > 0.006) &&
+                  (B0->fT0CFD*bin_width > 90 && B0->fT0CFD*bin_width < 100);
+
+    bool hit_1 = (B1->fMax > 0.006) &&
+                  (B1->fT0CFD*bin_width > 90 && B1->fT0CFD*bin_width < 100);
+
+    bool hit_2 = (B2->fMax > 0.006) &&
+                  (B2->fT0CFD*bin_width > 90 && B2->fT0CFD*bin_width < 100);
+
+    bool hit_3 = (B0->fMax > 0.006) && (B0->fT0CFD*bin_width > 90 && B0->fT0CFD*bin_width < 100) &&
+    (B1->fMax > 0.006) && (B1->fT0CFD*bin_width > 90 && B1->fT0CFD*bin_width < 100) &&
+    (B2->fMax > 0.006) && (B2->fT0CFD*bin_width > 90 && B2->fT0CFD*bin_width < 100);
+
     hB0Max->Fill(B0->fMax);
     hB1Max->Fill(B1->fMax);
     hB2Max->Fill(B2->fMax);
     hB3Max->Fill(B3->fMax);
 
-    hB0Width->Fill(B0->fWidth);
-    hB1Width->Fill(B1->fWidth);
-    hB2Width->Fill(B2->fWidth);
-    hB3Width->Fill(B3->fWidth);
+    if (hit_0) hB0Width->Fill(B0->fWidth);
+    if (hit_1) hB1Width->Fill(B1->fWidth);
+    if (hit_2) hB2Width->Fill(B2->fWidth);
+    if (hit_3) hB3Width->Fill(B3->fWidth);
 
     if (B0->fMax > 0.1 && B1->fMax > 0.1 && B2->fMax > 0.1 
     && B0->fT0_30*bin_width>90 && B0->fT0_30*bin_width<100 && B1->fT0_30*bin_width>90 && B1->fT0_30*bin_width<100 && B2->fT0_30*bin_width>90 && B2->fT0_30*bin_width<100
@@ -142,16 +165,80 @@ void mergedata(){
     hDiffTime4->Fill(B2->fT0CFD*bin_width - B1->fT0CFD*bin_width);
     hDiffTime5->Fill(B1->fT0CFD*bin_width - B0->fT0CFD*bin_width);
 
+    //t'=> double_t T0B2 = B2->fT0CFD*bin_width - B2->fWidth*bin_width*(-0.06);
+    double_t T0pB1 = B1->fT0CFD*bin_width - B1->fWidth*bin_width*(-0.06);
+    double_t T0pB2 = B2->fT0CFD*bin_width - B2->fWidth*bin_width*(-0.06);
+
     h_u0->Fill(B2->fWidth*bin_width, B2->fT0CFD*bin_width - B1->fT0CFD*bin_width);
-    h_u1->Fill(B1->fWidth*bin_width, B1->fT0CFD*bin_width - B0->fT0CFD*bin_width);
+    h_u1->Fill(B1->fWidth*bin_width, T0pB2 - T0pB1);
     
 
     }
 
   }  
 
-  //display amplitude histograms
 
+  // -------- Efficiency calculation --------
+  for (iEvent=0; iEvent<nEvents; iEvent++) {
+
+      tree->GetEntry(iEvent);
+
+      // Hit definition
+      bool hit_B0 = (B0->fMax > 0.006) &&
+                    (B0->fT0CFD*bin_width > 90 && B0->fT0CFD*bin_width < 100);
+
+      bool hit_B1 = (B1->fMax > 0.006) &&
+                    (B1->fT0CFD*bin_width > 90 && B1->fT0CFD*bin_width < 100);
+
+      bool hit_B2 = (B2->fMax > 0.006) &&
+                    (B2->fT0CFD*bin_width > 90 && B2->fT0CFD*bin_width < 100);
+
+      // --- Efficiency A3 (B0) ---
+      if (hit_B1 && hit_B2) {
+          N_B1_B2++;
+          if (hit_B0) nHit_B0++;
+      }
+
+      // --- Efficiency B3 (B1) ---
+      if (hit_B0 && hit_B2) {
+          N_B0_B2++;
+          if (hit_B1) nHit_B1++;
+      }
+
+      // --- Efficiency C3 (B2) ---
+      if (hit_B0 && hit_B1) {
+          N_B0_B1++;
+          if (hit_B2) nHit_B2++;
+      }
+  }
+  
+  // ---- Compute efficiencies ----
+  double eff_B0 = (N_B1_B2 > 0) ? (double)nHit_B0 / N_B1_B2 : 0;
+  double eff_B1 = (N_B0_B2 > 0) ? (double)nHit_B1 / N_B0_B2 : 0;
+  double eff_B2 = (N_B0_B1 > 0) ? (double)nHit_B2 / N_B0_B1 : 0;
+
+  double err_B0 = (N_B1_B2 > 0) ? sqrt(eff_B0*(1.0-eff_B0)/N_B1_B2) : 0;
+  double err_B1 = (N_B0_B2 > 0) ? sqrt(eff_B1*(1.0-eff_B1)/N_B0_B2) : 0;
+  double err_B2 = (N_B0_B1 > 0) ? sqrt(eff_B2*(1.0-eff_B2)/N_B0_B1) : 0;
+  
+  std::cout << "--- Conteo de Impactos y Coincidencias Adyacentes ---" << std::endl;
+
+  // Celda B0 (Referencia B1 y B2)
+  std::cout << "A3: nHit_B0 = " << nHit_B0 << " | N_B1_B2 = " << N_B1_B2 
+            << " | Eficiencia = " << std::fixed << std::setprecision(4) << eff_B0 << " +- " << err_B0 << std::endl;
+
+  // Celda B1 (Referencia B0 y B2)
+  std::cout << "B3: nHit_B1 = " << nHit_B1 << " | N_B0_B2 = " << N_B0_B2 
+            << " | Eficiencia = " << std::fixed << std::setprecision(4) << eff_B1 << " +- " << err_B1 << std::endl;
+
+  // Celda B2 (Referencia B0 y B1)
+  std::cout << "C3: nHit_B2 = " << nHit_B2 << " | N_B0_B1 = " << N_B0_B1 
+            << " | Eficiencia = " << std::fixed << std::setprecision(4) << eff_B2 << " +- " << err_B2 << std::endl;
+
+  std::cout << "----------------------------------------------------" << std::endl;
+  
+
+  //display amplitude histograms
 
   auto c3 = new TCanvas("c3", "Amplitude Distribution", 10,10,1400,700);
   c3->Divide(2,2);
@@ -252,7 +339,7 @@ void mergedata(){
     for (iEvent=0; iEvent<nEvents; iEvent++) {
       tree->GetEntry(iEvent);
 
-      if (B0->fMax > 0.1 && B1->fMax > 0.1 && B2->fMax > 0.1 
+      if (B0->fMax > 0.006 && B1->fMax > 0.006 && B2->fMax > 0.006
         && B0->fT0_30*bin_width>90 && B0->fT0_30*bin_width<100 && B1->fT0_30*bin_width>90 && B1->fT0_30*bin_width<100 && B2->fT0_30*bin_width>90 && B2->fT0_30*bin_width<100
         && B0->fT0CFD*bin_width>90 && B0->fT0CFD*bin_width<100 && B1->fT0CFD*bin_width>90 && B1->fT0CFD*bin_width<100 && B2->fT0CFD*bin_width>90 && B2->fT0CFD*bin_width<100
         && B0->fWidth > 0 && B1->fWidth > 0 && B2->fWidth > 0 ){

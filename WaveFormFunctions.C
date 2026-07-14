@@ -44,8 +44,8 @@ float const bin_width = 0.5; // here is the Sample Interval, better if you use n
 //float const bin_width = 0.5/2.; // here is the Sample Interval, better if you use nanoseconds (ns) 3.20000000e-10
 
 
-float const bl_from = 0.05; // choose the MIN value for the baseline region
-float const bl_to = 50; // choose the MAX value for the baseline region
+float const bl_from = -0.01; // choose the MIN value for the baseline region
+float const bl_to = 0.01; // choose the MAX value for the baseline region
 
 typedef struct {
   std::array<float,bins_per_record> data;
@@ -85,7 +85,7 @@ float GetBaseLine(OSC_Record* pWFin, int base_from, int base_to) {
   int iBaseFrom = base_from;
   int iBaseTo = base_to;
 
-  TH1F  *hTmp = new TH1F("hTmp","Pedestal",500,bl_from,bl_to);
+  TH1F  *hTmp = new TH1F("hTmp","Pedestal",100,bl_from,bl_to);
   int i;
   float base = 0.;
   for (i=iBaseFrom; i<=iBaseTo; i++) { hTmp->Fill(pWFin->data[i]); }
